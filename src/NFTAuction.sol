@@ -1,32 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IAuction} from "./interfaces/IAuction.sol";
 
-contract NFTAuction {
-    struct Auction {
-        address seller;
-        address nftContract;
-        uint256 tokenId;
-        uint256 startPrice;
-        uint256 minBidIncrement;
-        address hiestBidder;
-        uint256 startTime;
-        uint256 endTime;
-        bool ended;
-        bool claimed;
-    }
-
-    event AuctionCreated(
-        uint256 indexed auctionId,
-        address indexed seller,
-        address indexed nftContract,
-        uint256 tokenId,
-        uint256 startingPrice,
-        uint256 startTime,
-        uint256 endTime
-    );
-
+contract NFTAuction is IAuction {
     mapping(uint256 => Auction) public auctions;
     uint256 public auctionIdCounter;
 
