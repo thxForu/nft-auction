@@ -8,7 +8,8 @@ interface IAuction {
         uint256 tokenId;
         uint256 startPrice;
         uint256 minBidIncrement;
-        address hiestBidder;
+        address highestBidder;
+        uint256 highestBid;
         uint256 startTime;
         uint256 endTime;
         bool ended;
@@ -25,6 +26,8 @@ interface IAuction {
         uint256 endTime
     );
 
+    event BidPlaced(uint256 indexed auctionId, address indexed bidder, uint256 amount);
+
     function createAuction(
         address nftContract,
         uint256 tokenId,
@@ -33,4 +36,6 @@ interface IAuction {
         uint256 startTime,
         uint256 duration
     ) external returns (uint256);
+
+    function placeBid(uint256 auctionId) external payable;
 }

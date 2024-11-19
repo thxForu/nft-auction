@@ -42,6 +42,7 @@ contract NFTAuctionTest is Test {
             uint256 _startPrice,
             uint256 _minBidIncrement,
             address _highestBidder,
+            uint256 _highestBid,
             uint256 _startTime,
             uint256 _endTime,
             bool _ended,

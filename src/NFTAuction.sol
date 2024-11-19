@@ -30,8 +30,9 @@ contract NFTAuction is IAuction {
             tokenId: _tokenId,
             startPrice: _startPrice,
             minBidIncrement: _minBidIncrement,
-            hiestBidder: msg.sender,
+            highestBidder: address(0),
             startTime: _startTime,
+            highestBid: 0,
             endTime: _startTime + _duration,
             ended: false,
             claimed: false
@@ -43,5 +44,17 @@ contract NFTAuction is IAuction {
         );
 
         return auctionId;
+    }
+
+    function placeBid(uint256 _auctionId) public payable {
+        Auction memory auction = auctions[_auctionId];
+
+        require(auction.seller != address(0)); // use error type
+        require(!auction.ended); // use  error type
+        require(msg.value > auction.highestBid); // use  error type
+
+        auction.highestBidder = msg.sender;
+        auction.highestBid = msg.value;
+        emit BidPlaced(_auctionId, msg.sender, msg.value);
     }
 }
