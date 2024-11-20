@@ -91,7 +91,7 @@ contract NFTAuction is IAuction {
         Auction storage auction = auctions[auctionId];
         require(!auction.ended);
         require(msg.sender == auction.seller);
-        require(auction.highestBidder != address(0)); // cannot cancel auction with bids
+        require(auction.highestBidder == address(0)); // cannot cancel auction with bids
 
         auction.ended = true;
 

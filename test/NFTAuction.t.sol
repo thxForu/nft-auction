@@ -192,6 +192,51 @@ contract NFTAuctionTest is Test {
         auction.endAuction(999);
     }
 
+    function test_CancelAuction() public {
+        uint256 auctionId = createTestAuction();
+
+        vm.prank(seller);
+        auction.cancelAuction(auctionId);
+
+        // NFT should return to seller
+        assertEq(mockNFT.ownerOf(tokenId), seller);
+
+        (,,,,,,,,, bool ended,) = auction.auctions(auctionId);
+        assertTrue(ended);
+    }
+
+    function testFail_CancelAuctionWithBids() public {
+        uint256 auctionId = createTestAuction();
+
+        address bidder = makeAddr("bidder");
+        vm.deal(bidder, 2 ether);
+        vm.prank(bidder);
+        auction.placeBid{value: 1.5 ether}(auctionId);
+
+        // try cancel auction with bids
+        vm.prank(seller);
+        auction.cancelAuction(auctionId);
+    }
+
+    function testFail_CancelAuctionNotSeller() public {
+        uint256 auctionId = createTestAuction();
+
+        address notSeller = makeAddr("notSeller");
+        vm.prank(notSeller);
+        auction.cancelAuction(auctionId);
+    }
+
+    function testFail_CancelEndedAuction() public {
+        uint256 auctionId = createTestAuction();
+
+        vm.warp(block.timestamp + 1 days + 1);
+        auction.endAuction(auctionId);
+
+        // try to cancel ended auction
+        vm.prank(seller);
+        auction.cancelAuction(auctionId);
+    }
+
     function createTestAuction() internal returns (uint256) {
         vm.prank(seller);
         return auction.createAuction(address(mockNFT), tokenId, 1 ether, 0.1 ether, block.timestamp, 1 days);
