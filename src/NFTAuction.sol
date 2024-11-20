@@ -47,14 +47,56 @@ contract NFTAuction is IAuction {
     }
 
     function placeBid(uint256 _auctionId) public payable {
-        Auction memory auction = auctions[_auctionId];
+        Auction storage auction = auctions[_auctionId];
 
         require(auction.seller != address(0)); // use error type
         require(!auction.ended); // use  error type
         require(msg.value > auction.highestBid); // use  error type
 
+        address previousBidder = auction.highestBidder;
+        uint256 previousBid = auction.highestBid;
+
         auction.highestBidder = msg.sender;
         auction.highestBid = msg.value;
         emit BidPlaced(_auctionId, msg.sender, msg.value);
+
+        if (previousBidder != address(0)) {
+            (bool sent,) = previousBidder.call{value: previousBid}("");
+            require(sent, "Failed to send Ether");
+        }
+    }
+
+    function endAuction(uint256 auctionId) external {
+        // add nonReentrant
+        Auction storage auction = auctions[auctionId];
+        require(auction.seller != address(0));
+        require(block.timestamp > auction.endTime);
+        require(!auction.ended || !auction.claimed);
+
+        auction.ended = true;
+
+        if (auction.highestBidder != address(0)) {
+            IERC721(auction.nftContract).transferFrom(address(this), auction.highestBidder, auction.tokenId);
+
+            (bool sent,) = auction.seller.call{value: auction.highestBid}("");
+            require(sent, "Failed to send Ether");
+        } else {
+            IERC721(auction.nftContract).transferFrom(address(this), auction.seller, auction.tokenId);
+        }
+
+        emit AuctionEnded(auctionId, auction.highestBidder, auction.highestBid);
+    }
+
+    function cancelAuction(uint256 auctionId) external {
+        Auction storage auction = auctions[auctionId];
+        require(!auction.ended);
+        require(msg.sender == auction.seller);
+        require(auction.highestBidder != address(0)); // cannot cancel auction with bids
+
+        auction.ended = true;
+
+        IERC721(auction.nftContract).transferFrom(address(this), auction.seller, auction.tokenId);
+
+        emit AuctionCancelled(auctionId);
     }
 }

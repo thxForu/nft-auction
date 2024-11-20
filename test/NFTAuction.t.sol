@@ -82,4 +82,118 @@ contract NFTAuctionTest is Test {
         vm.prank(seller);
         auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
     }
+
+    // place bid
+    function test_PlaceBid() public {
+        uint256 startPrice = 1 ether;
+        uint256 minBidIncrement = 0.1 ether;
+        uint256 startTime = block.timestamp;
+        uint256 duration = 1 days;
+
+        vm.prank(seller);
+        uint256 auctionId =
+            auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+
+        address bidder = makeAddr("bidder");
+        vm.deal(bidder, 2 ether);
+
+        vm.prank(bidder);
+        auction.placeBid{value: 1.5 ether}(auctionId);
+
+        (,,,,, address highestBidder, uint256 highestBid,,,,) = auction.auctions(auctionId);
+        assertEq(highestBidder, bidder);
+        assertEq(highestBid, 1.5 ether);
+    }
+
+    function test_PlaceBidReturnsPreviousBid() public {
+        uint256 startPrice = 1 ether;
+        uint256 minBidIncrement = 0.1 ether;
+        uint256 startTime = block.timestamp;
+        uint256 duration = 1 days;
+
+        vm.prank(seller);
+        uint256 auctionId =
+            auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+
+        address bidder = makeAddr("bidder");
+        vm.deal(bidder, 2 ether);
+
+        vm.prank(bidder);
+        auction.placeBid{value: 1.5 ether}(auctionId);
+
+        address secondBidder = makeAddr("secondBidder");
+        vm.deal(secondBidder, 3 ether);
+
+        uint256 firstBidderBalanceBefore = bidder.balance;
+
+        vm.prank(secondBidder);
+        auction.placeBid{value: 2 ether}(auctionId);
+
+        // first bidder got refund
+        assertEq(bidder.balance, firstBidderBalanceBefore + 1.5 ether);
+
+        (,,,,, address highestBidder, uint256 highestBid,,,,) = auction.auctions(auctionId);
+        assertEq(highestBidder, secondBidder);
+        assertEq(highestBid, 2 ether);
+    }
+
+    function testFail_AuctionNotExists() public {
+        address bidder = makeAddr("bidder");
+        vm.deal(bidder, 1 ether);
+
+        vm.prank(bidder);
+        // non-existent auction id
+        auction.placeBid{value: 1 ether}(999);
+    }
+
+    // end auction
+    function test_EndAuction() public {
+        uint256 auctionId = createTestAuction();
+
+        address bidder = makeAddr("bidder");
+        vm.deal(bidder, 2 ether);
+        vm.prank(bidder);
+        auction.placeBid{value: 1.5 ether}(auctionId);
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        uint256 sellerBalanceBefore = seller.balance;
+
+        auction.endAuction(auctionId);
+
+        assertEq(mockNFT.ownerOf(tokenId), bidder);
+
+        // seller got paid
+        assertEq(seller.balance, sellerBalanceBefore + 1.5 ether);
+
+        (,,,,,,,,, bool ended,) = auction.auctions(auctionId);
+        assertTrue(ended);
+    }
+
+    function test_EndAuctionWithNoBids() public {
+        uint256 auctionId = createTestAuction();
+        vm.warp(block.timestamp + 1 days + 1);
+
+        auction.endAuction(auctionId);
+
+        // NFT should return to seller
+        assertEq(mockNFT.ownerOf(tokenId), seller);
+
+        (,,,,,,,,, bool ended,) = auction.auctions(auctionId);
+        assertTrue(ended);
+    }
+
+    function testFail_EndAuctionTooEarly() public {
+        uint256 auctionId = createTestAuction();
+        auction.endAuction(auctionId);
+    }
+
+    function testFail_EndNonExistentAuction() public {
+        auction.endAuction(999);
+    }
+
+    function createTestAuction() internal returns (uint256) {
+        vm.prank(seller);
+        return auction.createAuction(address(mockNFT), tokenId, 1 ether, 0.1 ether, block.timestamp, 1 days);
+    }
 }
