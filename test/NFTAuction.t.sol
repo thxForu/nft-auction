@@ -38,14 +38,7 @@ contract NFTAuctionTest is Test {
     }
 
     function test_CreateAuction() public {
-        uint256 startPrice = 1 ether;
-        uint256 minBidIncrement = 0.1 ether;
-        uint256 startTime = block.timestamp;
-        uint256 duration = 1 days;
-
-        vm.startPrank(seller);
-        uint256 auctionId =
-            auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+        uint256 auctionId = createTestAuction();
         vm.stopPrank();
 
         (
@@ -54,8 +47,8 @@ contract NFTAuctionTest is Test {
             uint256 _tokenId,
             uint256 _startPrice,
             uint256 _minBidIncrement,
-            address _highestBidder,
-            uint256 _highestBid,
+            ,
+            ,
             uint256 _startTime,
             uint256 _endTime,
             bool _ended,
@@ -65,13 +58,12 @@ contract NFTAuctionTest is Test {
         assertEq(_seller, seller);
         assertEq(_nftContract, address(mockNFT));
         assertEq(_tokenId, tokenId);
-        assertEq(_startPrice, startPrice);
-        assertEq(_minBidIncrement, minBidIncrement);
-        assertEq(_startTime, startTime);
-        assertEq(_endTime, startTime + duration);
+        assertEq(_startPrice, 1 ether);
+        assertEq(_minBidIncrement, 0.1 ether);
+        assertEq(_startTime, block.timestamp);
+        assertEq(_endTime, block.timestamp + 1 days);
         assertEq(_ended, false);
         assertEq(_claimed, false);
-
         assertEq(mockNFT.ownerOf(tokenId), address(auction));
     }
 
@@ -102,14 +94,8 @@ contract NFTAuctionTest is Test {
 
     // place bid
     function test_PlaceBid() public {
-        uint256 startPrice = 1 ether;
-        uint256 minBidIncrement = 0.1 ether;
-        uint256 startTime = block.timestamp;
-        uint256 duration = 1 days;
-
-        vm.prank(seller);
-        uint256 auctionId =
-            auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+        uint256 auctionId = createTestAuction();
+        vm.stopPrank();
 
         address bidder = makeAddr("bidder");
         vm.deal(bidder, 2 ether);
@@ -123,14 +109,8 @@ contract NFTAuctionTest is Test {
     }
 
     function test_PlaceBidReturnsPreviousBid() public {
-        uint256 startPrice = 1 ether;
-        uint256 minBidIncrement = 0.1 ether;
-        uint256 startTime = block.timestamp;
-        uint256 duration = 1 days;
-
-        vm.prank(seller);
-        uint256 auctionId =
-            auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+        uint256 auctionId = createTestAuction();
+        vm.stopPrank();
 
         address bidder = makeAddr("bidder");
         vm.deal(bidder, 2 ether);
