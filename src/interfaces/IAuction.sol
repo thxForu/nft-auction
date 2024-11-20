@@ -16,6 +16,18 @@ interface IAuction {
         bool claimed;
     }
 
+    error InvalidStartPrice();
+    error InvalidDuration();
+    error NotNFTOwner();
+    error AuctionNotFound();
+    error AuctionEndedError();
+    error BidTooLow();
+    error NotSeller();
+    error AuctionHasBids();
+    error AuctionNotEnded();
+    error EthTransferFailed();
+    error AuctionAlreadyEnded();
+
     event AuctionCreated(
         uint256 indexed auctionId,
         address indexed seller,

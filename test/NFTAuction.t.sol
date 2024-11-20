@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {NFTAuction} from "../src/NFTAuction.sol";
+import {IAuction} from "../src/interfaces/IAuction.sol";
 import {MockNFT} from "../src/mockNFT.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
@@ -11,6 +12,18 @@ contract NFTAuctionTest is Test {
     MockNFT public mockNFT;
     address public seller;
     uint256 public tokenId;
+
+    error InvalidStartPrice();
+    error InvalidDuration();
+    error NotNFTOwner();
+    error AuctionNotFound();
+    error AuctionEndedError();
+    error BidTooLow();
+    error NotSeller();
+    error AuctionHasBids();
+    error AuctionNotEnded();
+    error EthTransferFailed();
+    error AuctionAlreadyEnded();
 
     function setUp() public {
         auction = new NFTAuction();
@@ -62,7 +75,7 @@ contract NFTAuctionTest is Test {
         assertEq(mockNFT.ownerOf(tokenId), address(auction));
     }
 
-    function testFail_CreateAuctionNotOwner() public {
+    function test_CreateAuctionNotOwner() public {
         address notOwner = makeAddr("notOwner");
         uint256 startPrice = 1 ether;
         uint256 minBidIncrement = 0.1 ether;
@@ -70,17 +83,21 @@ contract NFTAuctionTest is Test {
         uint256 duration = 1 days;
 
         vm.prank(notOwner);
+        vm.expectRevert(NotNFTOwner.selector);
         auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+        vm.stopPrank();
     }
 
-    function testFail_CreateAuctionZeroPrice() public {
+    function test_CreateAuctionZeroPrice() public {
         uint256 startPrice = 0;
         uint256 minBidIncrement = 0.1 ether;
         uint256 startTime = block.timestamp;
         uint256 duration = 1 days;
 
         vm.prank(seller);
+        vm.expectRevert(InvalidStartPrice.selector);
         auction.createAuction(address(mockNFT), tokenId, startPrice, minBidIncrement, startTime, duration);
+        vm.stopPrank();
     }
 
     // place bid
@@ -137,11 +154,12 @@ contract NFTAuctionTest is Test {
         assertEq(highestBid, 2 ether);
     }
 
-    function testFail_AuctionNotExists() public {
+    function test_AuctionNotExists() public {
         address bidder = makeAddr("bidder");
         vm.deal(bidder, 1 ether);
 
         vm.prank(bidder);
+        vm.expectRevert(AuctionNotFound.selector);
         // non-existent auction id
         auction.placeBid{value: 1 ether}(999);
     }
@@ -183,12 +201,15 @@ contract NFTAuctionTest is Test {
         assertTrue(ended);
     }
 
-    function testFail_EndAuctionTooEarly() public {
+    function test_EndAuctionTooEarly() public {
         uint256 auctionId = createTestAuction();
+
+        vm.expectRevert(AuctionNotEnded.selector);
         auction.endAuction(auctionId);
     }
 
-    function testFail_EndNonExistentAuction() public {
+    function test_EndNonExistentAuction() public {
+        vm.expectRevert(AuctionNotFound.selector);
         auction.endAuction(999);
     }
 
@@ -205,7 +226,7 @@ contract NFTAuctionTest is Test {
         assertTrue(ended);
     }
 
-    function testFail_CancelAuctionWithBids() public {
+    function test_CancelAuctionWithBids() public {
         uint256 auctionId = createTestAuction();
 
         address bidder = makeAddr("bidder");
@@ -215,18 +236,20 @@ contract NFTAuctionTest is Test {
 
         // try cancel auction with bids
         vm.prank(seller);
+        vm.expectRevert(AuctionHasBids.selector);
         auction.cancelAuction(auctionId);
     }
 
-    function testFail_CancelAuctionNotSeller() public {
+    function test_CancelAuctionNotSeller() public {
         uint256 auctionId = createTestAuction();
 
         address notSeller = makeAddr("notSeller");
         vm.prank(notSeller);
+        vm.expectRevert(NotSeller.selector);
         auction.cancelAuction(auctionId);
     }
 
-    function testFail_CancelEndedAuction() public {
+    function test_CancelEndedAuction() public {
         uint256 auctionId = createTestAuction();
 
         vm.warp(block.timestamp + 1 days + 1);
@@ -234,6 +257,7 @@ contract NFTAuctionTest is Test {
 
         // try to cancel ended auction
         vm.prank(seller);
+        vm.expectRevert(AuctionEndedError.selector);
         auction.cancelAuction(auctionId);
     }
 

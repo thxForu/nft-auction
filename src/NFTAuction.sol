@@ -16,12 +16,12 @@ contract NFTAuction is IAuction {
         uint256 _startTime,
         uint256 _duration
     ) public returns (uint256) {
-        require(_startPrice > 0); // use error type
-        require(_duration > 0); // use  error type
+        if (_startPrice == 0) revert InvalidStartPrice();
+        if (_duration == 0) revert InvalidDuration();
 
         IERC721 nft = IERC721(_nftContract);
 
-        require(nft.ownerOf(_tokenId) == msg.sender);
+        if (nft.ownerOf(_tokenId) != msg.sender) revert NotNFTOwner();
 
         uint256 auctionId = auctionIdCounter++;
         auctions[auctionId] = Auction({
@@ -49,9 +49,9 @@ contract NFTAuction is IAuction {
     function placeBid(uint256 _auctionId) public payable {
         Auction storage auction = auctions[_auctionId];
 
-        require(auction.seller != address(0)); // use error type
-        require(!auction.ended); // use  error type
-        require(msg.value > auction.highestBid); // use  error type
+        if (auction.seller == address(0)) revert AuctionNotFound();
+        if (auction.ended) revert AuctionEndedError();
+        if (msg.value <= auction.highestBid) revert BidTooLow();
 
         address previousBidder = auction.highestBidder;
         uint256 previousBid = auction.highestBid;
@@ -62,16 +62,17 @@ contract NFTAuction is IAuction {
 
         if (previousBidder != address(0)) {
             (bool sent,) = previousBidder.call{value: previousBid}("");
-            require(sent, "Failed to send Ether");
+            if (!sent) revert EthTransferFailed();
         }
     }
 
     function endAuction(uint256 auctionId) external {
         // add nonReentrant
         Auction storage auction = auctions[auctionId];
-        require(auction.seller != address(0));
-        require(block.timestamp > auction.endTime);
-        require(!auction.ended || !auction.claimed);
+
+        if (auction.seller == address(0)) revert AuctionNotFound();
+        if (block.timestamp <= auction.endTime) revert AuctionNotEnded();
+        if (auction.ended && auction.claimed) revert AuctionAlreadyEnded();
 
         auction.ended = true;
 
@@ -79,7 +80,7 @@ contract NFTAuction is IAuction {
             IERC721(auction.nftContract).transferFrom(address(this), auction.highestBidder, auction.tokenId);
 
             (bool sent,) = auction.seller.call{value: auction.highestBid}("");
-            require(sent, "Failed to send Ether");
+            if (!sent) revert EthTransferFailed();
         } else {
             IERC721(auction.nftContract).transferFrom(address(this), auction.seller, auction.tokenId);
         }
@@ -89,9 +90,10 @@ contract NFTAuction is IAuction {
 
     function cancelAuction(uint256 auctionId) external {
         Auction storage auction = auctions[auctionId];
-        require(!auction.ended);
-        require(msg.sender == auction.seller);
-        require(auction.highestBidder == address(0)); // cannot cancel auction with bids
+
+        if (auction.ended) revert AuctionEndedError();
+        if (msg.sender != auction.seller) revert NotSeller();
+        if (auction.highestBidder != address(0)) revert AuctionHasBids(); // cannot cancel auction with bids
 
         auction.ended = true;
 
